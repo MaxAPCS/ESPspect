@@ -1,0 +1,62 @@
+[package]
+name = "esp32-bt-speaker"
+version = "0.1.0"
+authors = ["Billy Lindeman <billylindeman@gmail.com>"]
+edition = "2021"
+resolver = "2"
+rust-version = "1.82"
+description = "BT-classic Bluetooth speaker example for ESP32 in Rust — A2DP sink, AVRCP, HFP, I2S DAC + mic"
+
+[[bin]]
+name = "esp32-bt-speaker"
+harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
+
+[profile.release]
+opt-level = "s"
+
+[profile.dev]
+debug = true    # Symbols are nice, and they don't increase the size on Flash
+opt-level = "z"
+
+# Forks live on GitHub now so a fresh clone of this repo builds without
+# needing a local checkout of any esp-rs crate. The two billylindeman/
+# forks carry our project-specific patches:
+#   - esp-idf-svc:  A2DP external-codec API
+#   - esp-idf-hal:  I2sDriver::tx_reconfigure_std / rx_reconfigure_std
+# esp-idf-sys + embuild track esp-rs/master since we haven't needed
+# changes there.
+[patch.crates-io]
+esp-idf-svc = { git = "https://github.com/billylindeman/esp-idf-svc", branch = "billy/a2dp-external-codec-api" }
+esp-idf-hal = { git = "https://github.com/billylindeman/esp-idf-hal", branch = "billy/i2s-reconfigure-support" }
+esp-idf-sys = { git = "https://github.com/esp-rs/esp-idf-sys",       branch = "master" }
+embuild     = { git = "https://github.com/esp-rs/embuild",           branch = "master" }
+
+[dependencies]
+log    = "0.4"
+anyhow = "1"
+esp-idf-svc = { version = "0.52", default-features = false, features = ["std", "binstart", "critical-section", "embassy-sync", "experimental"] }
+esp-idf-hal = { version = "0.46", default-features = false, features = ["pcnt-legacy"] }
+esp-audio-codec = { git = "https://github.com/billylindeman/esp-audio-codec-rs", branch = "billy/patch-for-sbc-bug" }
+enumset = { version = "1", default-features = false }
+
+[build-dependencies]
+embuild = "0.33"
+
+[package.metadata.esp-idf-sys]
+# Track ESP-IDF master. v6.1-dev master is required for
+# CONFIG_BT_A2DP_USE_EXTERNAL_CODEC — the tagged v5.x lines don't
+# carry it. Pin to `v6.1` (or whichever release tag carries the
+# external-codec API) once that lands. Until then, master gets us
+# what we need.
+#
+# Commit-pinning is also supported (`esp_idf_version = "commit:<hash>"`),
+# but embuild bug as of d5f79ae: `get_branch_name` calls
+# `git describe --all --exact-match` on the checked-out ref and
+# propagates the failure as fatal when the commit isn't at any ref
+# tip. Branches and tags are fine, arbitrary commits aren't.
+esp_idf_repository = "https://github.com/espressif/esp-idf.git"
+esp_idf_version = "master"
+# Note: esp-audio-codec-rs declares its own extra_components entry pulling
+# espressif/esp_audio_codec into the build with bindings_header. Do NOT
+# duplicate it here — embuild doesn't dedupe and IDF's manifest validator
+# rejects the duplicate dependency key.
