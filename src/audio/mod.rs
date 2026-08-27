@@ -6,12 +6,7 @@
 
 #![cfg(all(esp32, esp_idf_bt_a2dp_use_external_codec))]
 
-use esp_idf_svc::hal::gpio::{Gpio12, Gpio13, Gpio15, Gpio22, Gpio25, Gpio26};
-use esp_idf_svc::hal::i2s::{I2S0, I2S1};
-
 pub mod decoder;
-pub mod i2s_input;
-pub mod i2s_output;
 
 /// Codec choice + parameters parsed out of the AVDTP negotiation.
 /// A2DP delivers raw codec frames (no in-band header for AAC), so
@@ -36,22 +31,13 @@ impl CodecChoice {
     }
 }
 
-/// Construction-time wiring for I2SAudioOutput. Pins + peripheral are
-/// claimed once at `spawn()` and never resent.
-pub struct I2SAudioOutputConfig {
-    pub i2s: I2S0<'static>,
-    pub bclk: Gpio13<'static>,
-    pub ws: Gpio12<'static>,
-    pub dout: Gpio15<'static>,
-}
-
 /// Runtime format for I2SAudioOutput PCM. Travels with every [`PcmFrame`]
 /// — when the format differs from what the task currently has configured,
 /// I2S reconfigures in place. There is no separate "set format" event:
 /// producers always declare the format for the samples they push, which
 /// eliminates restore-on-disconnect coordination between producers.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct I2SAudioOutputFormat {
+pub struct AudioOutputFormat {
     pub sample_rate: u32,
     pub channels: u8,
     pub bits: u8,
@@ -63,18 +49,6 @@ pub struct I2SAudioOutputFormat {
 /// reconfigures the DAC when it sees a format that differs from the one
 /// currently applied.
 pub struct PcmFrame {
-    pub format: I2SAudioOutputFormat,
+    pub format: AudioOutputFormat,
     pub samples: Vec<u8>,
-}
-
-/// Construction-time wiring for the SPH0645 mic on I2S1.
-///
-/// SPH0645 produces 24-bit data left-justified in a 32-bit slot, mono on
-/// the left channel (SEL tied to GND). Sample rate is fixed at 16 kHz to
-/// match SCO mSBC. Pin assignments mirror the cpp project.
-pub struct MicCaptureConfig {
-    pub i2s: I2S1<'static>,
-    pub bclk: Gpio26<'static>,
-    pub ws: Gpio25<'static>,
-    pub din: Gpio22<'static>,
 }

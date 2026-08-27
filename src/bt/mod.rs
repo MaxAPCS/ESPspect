@@ -17,9 +17,7 @@ use esp_idf_svc::hal::modem::BluetoothModemPeripheral;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 
 pub mod a2dp;
-pub mod avrcp;
 pub mod gap;
-pub mod hfp;
 pub mod pair_cache;
 
 /// Bring up the BT classic controller + Bluedroid stack and return a

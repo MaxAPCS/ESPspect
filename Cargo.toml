@@ -12,6 +12,9 @@ name = "esp32-bt-speaker"
 harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
 
 [profile.release]
+codegen-units = 1
+debug = 0
+lto = "fat"
 opt-level = "s"
 
 [profile.dev]
@@ -38,6 +41,7 @@ esp-idf-svc = { version = "0.52", default-features = false, features = ["std", "
 esp-idf-hal = { version = "0.46", default-features = false, features = ["pcnt-legacy"] }
 esp-audio-codec = { git = "https://github.com/billylindeman/esp-audio-codec-rs", branch = "billy/patch-for-sbc-bug" }
 enumset = { version = "1", default-features = false }
+microfft = { version = "0.6.0", default-features = false, features = ["size-1024"] }
 
 [build-dependencies]
 embuild = "0.33"

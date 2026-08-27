@@ -18,10 +18,6 @@ pub static DECODE_ERRS: AtomicU32 = AtomicU32::new(0);
 pub static FRAMES_DECODED_DELTA: AtomicU32 = AtomicU32::new(0);
 pub static PCM_PEAK_ABS: AtomicU32 = AtomicU32::new(0);
 
-pub static MIC_PEAK_ABS: AtomicU32 = AtomicU32::new(0);
-pub static MIC_CLIP_COUNT: AtomicU32 = AtomicU32::new(0);
-pub static MIC_RING_OVERFLOWS: AtomicU32 = AtomicU32::new(0);
-
 /// Zero-sized type wrapping the stats logger task. `Stats::spawn()`
 /// drains the public counters above on a 1 Hz cadence.
 pub struct Stats;
@@ -54,15 +50,10 @@ impl Stats {
             let i2s_err = I2S_WRITE_ERRS.swap(0, Ordering::Relaxed);
             let dec_err = DECODE_ERRS.swap(0, Ordering::Relaxed);
             let decoded = FRAMES_DECODED_DELTA.swap(0, Ordering::Relaxed);
-            let mic_clip = MIC_CLIP_COUNT.swap(0, Ordering::Relaxed);
-            let mic_overflow = MIC_RING_OVERFLOWS.swap(0, Ordering::Relaxed);
             if dropped != 0 || i2s_err != 0 || dec_err != 0 {
                 warn!(
                     "audio: dropped_sends={dropped} i2s_errs={i2s_err} decode_errs={dec_err} decoded={decoded}"
                 );
-            }
-            if mic_clip != 0 || mic_overflow != 0 {
-                warn!("mic: clip={mic_clip} ring_overflow={mic_overflow}");
             }
         }
     }

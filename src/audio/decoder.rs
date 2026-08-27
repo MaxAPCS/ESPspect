@@ -19,8 +19,8 @@ use esp_idf_svc::hal::cpu::Core;
 use esp_idf_svc::hal::task::thread::ThreadSpawnConfiguration;
 use log::{info, warn};
 
-use crate::audio::i2s_output::I2SAudioOutput;
-use crate::audio::{CodecChoice, I2SAudioOutputFormat};
+use crate::audio::{AudioOutputFormat, CodecChoice};
+use crate::fft_output::FFTOutput;
 use crate::stats;
 
 /// Output buffer for the decoder. AAC LC at 44.1 k stereo decodes to
@@ -70,7 +70,7 @@ impl DecoderTask {
     /// AAC) competes for CPU. Keeping it off the Bluedroid core (Core0)
     /// and ahead of background work prevents audible underruns when the
     /// host task is busy.
-    pub fn spawn(audio_out: I2SAudioOutput) -> std::io::Result<Self> {
+    pub fn spawn(audio_out: FFTOutput) -> std::io::Result<Self> {
         let (tx, rx) = sync_channel::<DecoderMsg>(FRAME_CHANNEL_DEPTH);
         ThreadSpawnConfiguration {
             name: Some(c"audio_decoder"),
@@ -114,10 +114,10 @@ impl DecoderTask {
         }
     }
 
-    fn event_loop(rx: Receiver<DecoderMsg>, audio_out: I2SAudioOutput) {
+    fn event_loop(rx: Receiver<DecoderMsg>, audio_out: FFTOutput) {
         let mut decoder: Option<Decoder> = None;
         let mut out_buf = vec![0u8; PCM_OUT_BUF];
-        let mut current_format: Option<I2SAudioOutputFormat> = None;
+        let mut current_format: Option<AudioOutputFormat> = None;
         let mut frames_decoded: u64 = 0;
         let mut pcm_bytes: u64 = 0;
         // Persistent input buffer: each BT packet's bytes are appended
@@ -155,7 +155,7 @@ impl DecoderTask {
                     // travels with every PcmFrame, so a session resume
                     // after SCO ends just works: the next decoded frame
                     // reconfigures the DAC.
-                    current_format = Some(I2SAudioOutputFormat {
+                    current_format = Some(AudioOutputFormat {
                         sample_rate: choice.sample_rate(),
                         channels: choice.channels(),
                         bits: 16,
@@ -261,6 +261,7 @@ impl DecoderTask {
                                     // We prefer dropping audio over
                                     // stalling the decoder.
                                     let samples = out_buf[..decoded].to_vec();
+
                                     if let Err(e) = audio_out.send_pcm(format, samples) {
                                         warn!("i2s_output full: {e}");
                                     }
