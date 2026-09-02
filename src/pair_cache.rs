@@ -6,11 +6,12 @@
 //! Stored as a 6-byte blob in NVS namespace `bt_speaker`, key
 //! `last_peer`. Pairing a different phone overwrites the entry.
 
-#![cfg(all(esp32, esp_idf_bt_a2dp_use_external_codec))]
-
-use esp_idf_svc::bt::BdAddr;
-use esp_idf_svc::nvs::{EspDefaultNvsPartition, EspNvs, NvsDefault};
-use log::{info, warn};
+use esp_idf_svc::{
+    bt::BdAddr,
+    nvs::{EspDefaultNvsPartition, EspNvs, NvsDefault},
+    sys::EspError,
+};
+use log::warn;
 
 const NAMESPACE: &str = "bt_speaker";
 const KEY: &str = "last_peer";
@@ -23,7 +24,7 @@ impl PairCache {
     /// Open (or create) the `bt_speaker` namespace for read+write. Takes
     /// a clone of the NVS partition so the BT driver can still consume the
     /// original handle in `bt::init`.
-    pub fn open(partition: EspDefaultNvsPartition) -> anyhow::Result<Self> {
+    pub fn open(partition: EspDefaultNvsPartition) -> Result<Self, EspError> {
         let nvs = EspNvs::new(partition, NAMESPACE, true)?;
         Ok(Self { nvs })
     }
@@ -47,9 +48,8 @@ impl PairCache {
     /// `Arc` without a `Mutex`.
     pub fn write(&self, addr: &BdAddr) {
         let bytes = addr.addr();
-        match self.nvs.set_blob(KEY, &bytes) {
-            Ok(()) => info!("stored {addr}"),
-            Err(e) => warn!("write {addr}: {e}"),
+        if let Err(e) = self.nvs.set_blob(KEY, &bytes) {
+            warn!("write {addr}: {e}")
         }
     }
 }
