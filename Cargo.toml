@@ -1,10 +1,10 @@
 [package]
-name = "espspectrum"
-version = "0.1.0"
+name = "espspect"
+version = "0.5.0"
 edition = "2024"
 
 [[bin]]
-name = "espspectrum"
+name = "espspect"
 harness = false # do not use the built-in cargo test harness -> resolve rust-analyzer errors
 
 [profile.release]
@@ -21,7 +21,7 @@ opt-level = "s"
 [dependencies]
 esp-idf-svc = "0.52"
 rtrb = "0.4"
-microfft = { version = "0.6.0", default-features = false, features = ["size-1024"] }
+microfft = { version = "0.6", default-features = false, features = ["size-1024"] }
 gamma-table-macros = "0.1"
 
 [build-dependencies]
