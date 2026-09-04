@@ -1,19 +1,21 @@
 use std::{mem, thread};
 
-use esp_idf_svc::hal::{cpu::Core, delay::FreeRtos, task::thread::ThreadSpawnConfiguration};
-use microfft::{Complex32, real::rfft_1024};
+use esp_idf_svc::hal::{cpu::Core, delay::FreeRtos, gpio, task::thread::ThreadSpawnConfiguration};
+use microfft::{Complex32, real::rfft_128};
 use rtrb::{Consumer, Producer, RingBuffer, chunks::ChunkError};
+
+use crate::LEDOutput;
 include!(concat!(env!("OUT_DIR"), "/hann_window.rs"));
 
-const WINDOW_SIZE: usize = 1024;
+const WINDOW_SIZE: usize = 128;
 
 pub struct FFTAnalysis {
     tx: Producer<u8>,
 }
 
 impl FFTAnalysis {
-    pub fn spawn(
-        callback: impl FnMut(&mut [f32; WINDOW_SIZE / 2]) + Send + 'static,
+    pub fn spawn<'a, T: LEDOutput<'a>>(
+        output_pin: impl gpio::OutputPin + 'static,
     ) -> anyhow::Result<Self> {
         let (tx, rx) = RingBuffer::new(4 * WINDOW_SIZE);
         ThreadSpawnConfiguration {
@@ -33,7 +35,7 @@ impl FFTAnalysis {
                     (raw as f32 / 1024.).ceil() as usize * 1024
                 },
             )
-            .spawn(move || Self::event_loop(rx, callback))?;
+            .spawn(move || Self::event_loop(rx, T::init(output_pin).unwrap()))?;
 
         ThreadSpawnConfiguration::default().set()?;
         Ok(Self { tx })
@@ -44,7 +46,7 @@ impl FFTAnalysis {
     }
 
     #[inline]
-    fn event_loop(mut rx: Consumer<u8>, mut callback: impl FnMut(&mut [f32; WINDOW_SIZE / 2])) {
+    fn event_loop<'a, T: LEDOutput<'a>>(mut rx: Consumer<u8>, mut output: T) {
         loop {
             let mut window = [mem::MaybeUninit::uninit(); WINDOW_SIZE];
             let Ok(window) = rx.pop_entire_slice_uninit(&mut window) else {
@@ -55,14 +57,16 @@ impl FFTAnalysis {
             let mut window_f: [f32; WINDOW_SIZE] =
                 std::array::from_fn(|i| (window[i] as f32 - 128.) * HANN_PREDIV[i]);
 
-            let spectrum = Self::reinterpret_complex(rfft_1024(&mut window_f));
+            let spectrum = Self::reinterpret_complex(rfft_128(&mut window_f));
             spectrum[1] = 0.; // clear packed nyquist freq
             for i in 0..WINDOW_SIZE / 2 {
                 spectrum[i] =
                     spectrum[2 * i] * spectrum[2 * i] + spectrum[2 * i + 1] * spectrum[2 * i + 1]
             }
 
-            callback(Self::reinterpret_truncate(spectrum));
+            output
+                .send_amplitudes(Self::reinterpret_truncate(spectrum))
+                .ok();
         }
     }
 

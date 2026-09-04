@@ -1,19 +1,18 @@
 use std::sync::Arc;
 
 use esp_idf_svc::{
-    hal::{delay::FreeRtos, peripherals::Peripherals},
+    hal::{delay::FreeRtos, gpio, peripherals::Peripherals},
     log::EspLogger,
     nvs::EspDefaultNvsPartition,
 };
 
 mod bluetooth;
 mod fft_analysis;
-mod led_output;
 mod pair_cache;
-use crate::bluetooth::Bluetooth;
+mod rmt_output;
 use crate::fft_analysis::FFTAnalysis;
-use crate::led_output::LEDOutput;
 use crate::pair_cache::PairCache;
+use crate::{bluetooth::Bluetooth, rmt_output::RMTOutput};
 
 fn main() -> anyhow::Result<()> {
     esp_idf_svc::sys::link_patches();
@@ -22,10 +21,7 @@ fn main() -> anyhow::Result<()> {
     let peripherals = Peripherals::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
 
-    let mut led_output = LEDOutput::spawn(peripherals.spi2, peripherals.pins.gpio19)?; // HSPI
-    let mut fft_analysis = FFTAnalysis::spawn(move |ampl| {
-        led_output.send_amplitudes(ampl).ok();
-    })?;
+    let mut fft_analysis = FFTAnalysis::spawn::<RMTOutput>(peripherals.pins.gpio19)?;
     let pair_cache = Arc::new(PairCache::open(nvs.clone())?);
 
     // iPhone caches SDP record from FIRST connection;
@@ -50,4 +46,11 @@ fn main() -> anyhow::Result<()> {
     loop {
         FreeRtos::delay_ms(10_000);
     }
+}
+
+pub trait LEDOutput<'a> {
+    fn init(pin: impl gpio::OutputPin + 'a) -> Result<Self, esp_idf_svc::sys::EspError>
+    where
+        Self: Sized;
+    fn send_amplitudes(&mut self, buf: &mut [f32]) -> Result<(), esp_idf_svc::sys::EspError>;
 }
