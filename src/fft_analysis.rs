@@ -1,12 +1,15 @@
 use std::{mem, thread};
 
-use esp_idf_svc::hal::{cpu::Core, delay::FreeRtos, gpio, task::thread::ThreadSpawnConfiguration};
+use esp_idf_svc::hal::{
+    cpu::Core, delay::FreeRtos, gpio, sys::EspError, task::thread::ThreadSpawnConfiguration,
+};
 use microfft::{Complex32, real::rfft_128};
 use rtrb::{Consumer, Producer, RingBuffer, chunks::ChunkError};
 
 use crate::LEDOutput;
 include!(concat!(env!("OUT_DIR"), "/hann_window.rs"));
 
+const RB_CAPACITY: usize = 5120; // >= 1 packet
 const WINDOW_SIZE: usize = 128;
 
 pub struct FFTAnalysis {
@@ -16,8 +19,8 @@ pub struct FFTAnalysis {
 impl FFTAnalysis {
     pub fn spawn<'a, T: LEDOutput<'a>>(
         output_pin: impl gpio::OutputPin + 'static,
-    ) -> anyhow::Result<Self> {
-        let (tx, rx) = RingBuffer::new(4 * WINDOW_SIZE);
+    ) -> Result<Self, EspError> {
+        let (tx, rx) = RingBuffer::new(RB_CAPACITY);
         ThreadSpawnConfiguration {
             name: Some(c"fft_analysis"),
             priority: 20,
@@ -35,8 +38,8 @@ impl FFTAnalysis {
                     (raw as f32 / 1024.).ceil() as usize * 1024
                 },
             )
-            .spawn(move || Self::event_loop(rx, T::init(output_pin).unwrap()))?;
-
+            .spawn(move || Self::event_loop(rx, T::init(output_pin).unwrap()))
+            .map_err(|_| EspError::from_infallible::<-1>())?;
         ThreadSpawnConfiguration::default().set()?;
         Ok(Self { tx })
     }
@@ -55,13 +58,15 @@ impl FFTAnalysis {
             };
 
             let mut window_f: [f32; WINDOW_SIZE] =
-                std::array::from_fn(|i| (window[i] as f32 - 128.) * HANN_PREDIV[i]);
+                std::array::from_fn(|i| (window[i] as f32 - 128.) * f32::from_bits(HANN_PREDIV[i]));
 
             let spectrum = Self::reinterpret_complex(rfft_128(&mut window_f));
-            spectrum[1] = 0.; // clear packed nyquist freq
+
             for i in 0..WINDOW_SIZE / 2 {
-                spectrum[i] =
-                    spectrum[2 * i] * spectrum[2 * i] + spectrum[2 * i + 1] * spectrum[2 * i + 1]
+                spectrum[i] = f32::sqrt(f32::algebraic_add(
+                    f32::algebraic_mul(spectrum[2 * i], spectrum[2 * i]),
+                    f32::algebraic_mul(spectrum[2 * i + 1], spectrum[2 * i + 1]),
+                ));
             }
 
             output

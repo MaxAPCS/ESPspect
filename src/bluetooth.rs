@@ -44,7 +44,7 @@ impl<'a> Bluetooth<'a> {
                     let pairs = unsafe { buf.as_chunks_unchecked::<2>() };
                     debug_assert!(pairs.len() <= DOWNMIX_BUF_SIZE, "downmix buffer overflow");
                     for (m, &[l, r]) in Iterator::zip(downmix_buf.iter_mut(), pairs.into_iter()) {
-                        *m = l / 2 + r / 2;
+                        *m = ((l as u16 + r as u16) / 2) as u8;
                     }
                     callback(&downmix_buf[..usize::min(DOWNMIX_BUF_SIZE, pairs.len())])
                 } else {

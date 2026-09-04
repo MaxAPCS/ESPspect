@@ -1,3 +1,5 @@
+#![feature(float_algebraic)]
+
 use std::sync::Arc;
 
 use esp_idf_svc::{
@@ -14,7 +16,7 @@ use crate::fft_analysis::FFTAnalysis;
 use crate::pair_cache::PairCache;
 use crate::{bluetooth::Bluetooth, rmt_output::RMTOutput};
 
-fn main() -> anyhow::Result<()> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     esp_idf_svc::sys::link_patches();
     EspLogger::initialize_default();
 

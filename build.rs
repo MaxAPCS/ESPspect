@@ -1,3 +1,5 @@
+#![feature(float_algebraic)]
+
 use std::env;
 use std::fs;
 use std::path::Path;
@@ -20,19 +22,33 @@ fn main() {
 
     // Compute the window using whatever size we found
     let mut table = vec![0.; n];
-    let n_f = n as f32;
+    let mut sum = 0.;
     for i in 0..n {
-        // pre-divide the u8 [0, 255] -> f32 [-1, 1] conversion factor (128)
-        table[i] = (1. - (2. * std::f32::consts::PI * i as f32 / n_f).cos()) / 256.
+        let val = 1f32
+            .algebraic_sub(f32::cos(
+                std::f32::consts::PI
+                    .algebraic_mul((2 * i) as f32)
+                    .algebraic_div(n as f32),
+            ))
+            .algebraic_div(2.); // (1 - cos((pi * 2 * i) / n))/2
+        table[i] = val;
+        sum += val;
     }
 
     let table_str = table
         .into_iter()
-        .map(|v| format!("{v:e}"))
+        .map(|v| {
+            // (2v / 128) / sum
+            v.algebraic_mul(2.)
+                .algebraic_div(128.)
+                .algebraic_div(sum)
+                .to_bits()
+                .to_string()
+        })
         .collect::<Vec<_>>()
         .join(", ");
 
-    let out = format!("pub static HANN_PREDIV: [f32; {n}] = [{table_str}];\n");
+    let out = format!("pub static HANN_PREDIV: [u32; {n}] = [{table_str}];\n");
 
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest = Path::new(&out_dir).join("hann_window.rs");
