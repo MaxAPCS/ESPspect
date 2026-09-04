@@ -19,7 +19,6 @@ lto = "fat"
 opt-level = "s"
 
 [dependencies]
-log = "0.4"
 esp-idf-svc = "0.52"
 rtrb = "0.4"
 microfft = { version = "0.6.0", default-features = false, features = ["size-1024"] }

@@ -11,7 +11,6 @@ use esp_idf_svc::{
     nvs::{EspDefaultNvsPartition, EspNvs, NvsDefault},
     sys::EspError,
 };
-use log::warn;
 
 const NAMESPACE: &str = "bt_speaker";
 const KEY: &str = "last_peer";
@@ -36,8 +35,8 @@ impl PairCache {
         match self.nvs.get_blob(KEY, &mut buf) {
             Ok(Some(bytes)) if bytes.len() == 6 => Some(BdAddr::from_bytes(buf)),
             Ok(Some(_)) | Ok(None) => None,
-            Err(e) => {
-                warn!("read: {e}");
+            Err(_e) => {
+                // warn!("read: {e}");
                 None
             }
         }
@@ -48,8 +47,8 @@ impl PairCache {
     /// `Arc` without a `Mutex`.
     pub fn write(&self, addr: &BdAddr) {
         let bytes = addr.addr();
-        if let Err(e) = self.nvs.set_blob(KEY, &bytes) {
-            warn!("write {addr}: {e}")
+        if let Err(_e) = self.nvs.set_blob(KEY, &bytes) {
+            // warn!("write {addr}: {e}")
         }
     }
 }

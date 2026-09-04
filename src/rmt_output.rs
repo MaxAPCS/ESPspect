@@ -77,9 +77,9 @@ static WS_BITS: LazyLock<[Symbol; 2]> = LazyLock::new(|| {
         Symbol::new_with(
             RMT_FREQ,
             PinState::High,
-            Duration::from_nanos(950), //600ns
+            Duration::from_nanos(950),
             PinState::Low,
-            Duration::from_nanos(300), //650ns
+            Duration::from_nanos(300),
         )
         .unwrap(),
     ]

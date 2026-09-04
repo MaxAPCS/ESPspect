@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use esp_idf_svc::{
     hal::{delay::FreeRtos, gpio, peripherals::Peripherals},
-    log::EspLogger,
     nvs::EspDefaultNvsPartition,
 };
 
@@ -18,7 +17,6 @@ use crate::{bluetooth::Bluetooth, rmt_output::RMTOutput};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     esp_idf_svc::sys::link_patches();
-    EspLogger::initialize_default();
 
     let peripherals = Peripherals::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
