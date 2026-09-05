@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let peripherals = Peripherals::take()?;
     let nvs = EspDefaultNvsPartition::take()?;
 
-    let mut fft_analysis = FFTAnalysis::spawn::<RMTOutput>(peripherals.pins.gpio19)?;
+    let mut fft_analysis = FFTAnalysis::spawn::<RMTOutput>(peripherals.pins.gpio23)?;
     let pair_cache = Arc::new(PairCache::open(nvs.clone())?);
 
     // iPhone caches SDP record from FIRST connection;
