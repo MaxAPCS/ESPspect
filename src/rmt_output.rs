@@ -48,11 +48,11 @@ impl<'a> LEDOutput<'a> for RMTOutput<'a> {
                 if i == 0 {
                     return WSItem::Reset;
                 }
-                let x = buf[i] * 300.;
+                let x = buf[i] * 384.;
                 WSItem::RGB(RGB8::uncorrected_rgb(
-                    (x - 255.).clamp(0., 255.) as usize,
-                    x.clamp(0., 255.) as usize,
-                    0,
+                    x as _,
+                    (x - 255.) as _,
+                    (x - 255.) as _,
                 ))
             }),
             &config::TransmitConfig {
@@ -156,17 +156,17 @@ struct RGB8 {
 
 impl RGB8 {
     #[inline]
-    fn uncorrected_rgb(r: usize, g: usize, b: usize) -> Self {
+    fn uncorrected_rgb(r: u8, g: u8, b: u8) -> Self {
         Self {
-            red: GAMMA[r],
-            green: GAMMA[g],
-            blue: GAMMA[b],
+            red: GAMMA[r as usize],
+            green: GAMMA[g as usize],
+            blue: GAMMA[b as usize],
         }
     }
 
     #[inline]
     fn to_ws(&self) -> [Symbol; 24] {
-        let packed = (self.blue as usize) << 16 | (self.red as usize) << 8 | (self.green as usize);
+        let packed = (self.red as usize) << 16 | (self.green as usize) << 8 | (self.blue as usize);
         std::array::from_fn(|i| WS_BITS[packed >> (23 - i) & 1])
     }
 }
